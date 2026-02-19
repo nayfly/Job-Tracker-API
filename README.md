@@ -1,6 +1,6 @@
 # Job Tracker API
 
-[![CI](https://github.com/<your‑user>/job-tracker-api/actions/workflows/ci.yml/badge.svg)](https://github.com/<your‑user>/job-tracker-api/actions)
+[![CI](https://github.com/nayfly/Job-Tracker-API/actions/workflows/ci.yml/badge.svg)](https://github.com/nayfly/Job-Tracker-API/actions)
 
 A simple FastAPI backend used to track job applications, companies and follow-ups.
 This project is designed as a technical portfolio piece with:
