@@ -17,16 +17,15 @@ This project is designed as a technical portfolio piece with:
 ```mermaid
 flowchart LR
     subgraph API
-        A[FastAPI app] -->|includes routers| R[Auth / Companies / Applications / Followups]
-        A --> M[RequestIdMiddleware]
+        A[FastAPI App]
+        R[Auth / Companies / Applications / Followups]
+        M[RequestIdMiddleware<br/>adds request_id]
+        
+        A -->|includes routers| R
+        A --> M
     end
+
     A --> DB[(Database)]
-    style DB fill:#f9f,stroke:#333,stroke-width:2px
-    note right of M
-      assigns unique
-      request_id to each
-      incoming HTTP call
-    end
 ```
 
 ## Technical decisions & logging
