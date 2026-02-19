@@ -11,9 +11,18 @@ from app.schemas.auth import RegisterIn, TokenOut
 
 router = APIRouter()
 
-# in-memory crude rate limiting for login attempts. keyed by username and
-# kept only for a short window; this shop‑floor solution is sufficient for a
-# demo and can be replaced with redis/fastapi-limiter in production.
+# in-memory crude rate limiting for login attempts. keyed by username (email)
+# and stored in a sliding one‑minute window. This is deliberately *per-email*
+# rather than per-IP; an attacker can evade the limit by supplying a new email
+# each attempt (hence the guard is "basic demo-ready" only).  A production
+# service would layer IP checks or use a shared cache like redis and/or a
+# library such as fastapi-limiter.
+#
+# behaviour summary:
+# * limit = _MAX_ATTEMPTS per _WINDOW_MINUTES
+# * window is sliding: only attempts within the last minute count
+# * if the email changes, a separate counter is used
+# * successful logins still consume the quota (prevents timing attacks)
 _login_attempts: dict[str, list] = {}
 _MAX_ATTEMPTS = 5
 _WINDOW_MINUTES = 1

@@ -125,7 +125,12 @@ def update_application(
     if not app_obj:
         raise HTTPException(status_code=404, detail="Application not found")
 
-    for attr, val in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        # nothing to update – treat as bad request so caller doesn't think
+        # something changed silently
+        raise HTTPException(status_code=422, detail="no fields provided for update")
+    for attr, val in data.items():
         setattr(app_obj, attr, val)
     db.add(app_obj)
     db.commit()

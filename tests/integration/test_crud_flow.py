@@ -70,6 +70,32 @@ def test_companies_applications_followups_flow():
     assert r.status_code == 200
     assert len(r.json()) == 1
 
+    # add a second application (different date to check ordering)
+    from datetime import date, timedelta
+    later = date.today()
+    r = client.post(
+        "/applications/",
+        json={"position": "Designer", "company_id": company["id"], "applied_at": later.isoformat()},
+        headers=auth_header(token),
+    )
+    assert r.status_code == 201
+
+    # test complex pagination/sorting: limit 1, offset 0 & 1 to ensure paging works
+    r = client.get(
+        "/applications/",
+        params={"limit": 1, "offset": 0, "order_by": "applied_at", "desc": "true"},
+        headers=auth_header(token),
+    )
+    assert r.status_code == 200
+    assert len(r.json()) == 1
+    r = client.get(
+        "/applications/",
+        params={"limit": 1, "offset": 1, "order_by": "applied_at", "desc": "true"},
+        headers=auth_header(token),
+    )
+    assert r.status_code == 200
+    assert len(r.json()) == 1
+
     # patch the application to change status
     r = client.patch(
         f"/applications/{application['id']}",
@@ -78,6 +104,14 @@ def test_companies_applications_followups_flow():
     )
     assert r.status_code == 200
     assert r.json()["status"] == "interview"
+
+    # patch with empty payload should be rejected (422)
+    r = client.patch(
+        f"/applications/{application['id']}",
+        json={},
+        headers=auth_header(token),
+    )
+    assert r.status_code == 422
 
     # add a followup
     r = client.post(
@@ -125,10 +159,12 @@ def test_companies_applications_followups_flow():
     r = client.delete(f"/applications/{application['id']}", headers=auth_header(token))
     assert r.status_code == 204
 
-    # applications list should now be empty
+    # after deleting the first application there should still be one left
     r = client.get("/applications/", headers=auth_header(token))
     assert r.status_code == 200
-    assert r.json() == []
+    apps = r.json()
+    assert len(apps) == 1
+    assert apps[0]["position"] == "Designer"
 
     # invalid application (future date)
     from datetime import date, timedelta

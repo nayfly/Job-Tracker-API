@@ -54,6 +54,51 @@ logs to trace individual requests across async calls.
 
 ## Getting Started
 
+### Quickstart (<60 seconds)
+
+```bash
+# clone & prepare
+git clone <repo> job-tracker-api && cd job-tracker-api
+python -m venv .venv
+.venv\Scripts\activate               # windows
+pip install -e .[dev]
+
+# run the app on localhost:8000 (default SQLite)
+uvicorn app.main:app --reload &
+
+# register/login, create company & application
+curl -s -X POST http://localhost:8000/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"me@example.com","password":"pass1234"}'
+TOKEN=$(curl -s -X POST http://localhost:8000/auth/login \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'username=me@example.com&password=pass1234' | jq -r .access_token)
+
+# create company and an application
+curl -s -X POST http://localhost:8000/companies/ \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Acme","website":"https://acme"}' | jq
+
+curl -s -X POST http://localhost:8000/applications/ \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"position":"Dev","company_id":1}' | jq
+
+# filter, patch, dashboard
+curl -s http://localhost:8000/applications/?status=applied \
+  -H "Authorization: Bearer $TOKEN" | jq
+curl -s -X PATCH http://localhost:8000/applications/1 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"interview"}' | jq
+curl -s http://localhost:8000/applications/dashboard/summary \
+  -H "Authorization: Bearer $TOKEN" | jq
+```
+
+The rest of this README documents the architecture, configuration, and
+additional endpoints.  The above commands are sufficient to verify the API
+is running.
 
 ### Python environment
 
@@ -95,8 +140,26 @@ A simple `Makefile` offers shortcuts:
 ```bash
 make test      # run pytest
 make lint      # run ruff and fix issues
-make up        # start services via docker-compose
+make up        # start services via docker-compose (prod-like)
 ```
+
+### Docker
+
+There are two compose configs:
+
+* `docker-compose.yml` – production‑like, builds the image, runs `api` and
+  `db` without mounting source.  Use for CI or when you want a clean
+  container.
+* `docker-compose.dev.yml` – development mode; source is bind-mounted and the
+  entrypoint script runs migrations then starts uvicorn.  It also brings up
+  a local Postgres instance.  If the `alembic upgrade head` step fails the
+  container exits (due to `set -e`), which is the desired behaviour.
+
+Start dev: `docker compose -f docker-compose.dev.yml up --build`.
+
+The entrypoint (`scripts/entrypoint.sh`) runs migrations and then launches
+uvicorn; in dev it simply logs the failure and aborts if the migration step
+fails, ensuring you don’t forget to apply schema changes.
 
 API docs available at `http://localhost:8000/docs`.
 
@@ -130,21 +193,33 @@ alembic upgrade head
 
 ## API Overview
 
-- `POST /auth/register` – create new user
-- `POST /auth/login` – obtain bearer token
-- `GET /health` – healthcheck with database connectivity check
-- `GET /metrics` – Prometheus metrics
-- `GET/POST/DELETE /companies` – manage companies (deletion is supported)
-- `GET/POST/DELETE/PATCH /applications` – manage applications; list supports
-  pagination, filtering (`status`, `company_id`), sorting, and partial
-  updates
-- `GET /applications/dashboard/summary` – business-oriented summary
-- `GET/POST/DELETE /followups` – manage follow-up notes
+| Method | Path | Params | Description |
+|--------|------|--------|-------------|
+| POST   | `/auth/register` | – | create user |
+| POST   | `/auth/login` | – | obtain bearer token |
+| GET    | `/health` | – | healthcheck (executes `SELECT 1`) |
+| GET    | `/metrics` | – | Prometheus metrics |
+| GET    | `/companies/` | – | list companies |
+| POST   | `/companies/` | – | create company |
+| DELETE | `/companies/{id}` | – | delete company |
+| GET    | `/applications/` | `status`, `company_id`, `limit`, `offset`, `order_by`, `desc` | list with paging/filter/sort |
+| POST   | `/applications/` | – | create application |
+| PATCH  | `/applications/{id}` | – | partial update |
+| DELETE | `/applications/{id}` | – | delete application |
+| GET    | `/applications/dashboard/summary` | – | counts by status + recent followups |
+| GET    | `/followups/` | `application_id` | list notes for app |
+| POST   | `/followups/` | – | create followup note |
+| DELETE | `/followups/{id}` | – | delete note |
 
 Authentication is required for most endpoints. Use the returned JWT in
 `Authorization: Bearer <token>` header.
 
 ## Notes
+
+*The login endpoint applies a simple in-memory rate limit (5 attempts per
+minute per email address, sliding window).  This is a demo‑only guard; if the
+email changes the counter resets.  A real system would combine IP-based
+throttling or use a shared cache.*
 
 Designed for portfolio/demo use: defaults favor fast local execution 
 (SQLite) and deterministic tests. For production: configure Postgres, rotate
