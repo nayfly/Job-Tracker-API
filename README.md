@@ -65,6 +65,7 @@ pip install -e .[dev]
 ```
 
 The `pyproject.toml` defines dependencies and `ruff` for linting.
+A `.pre-commit-config.yaml` is provided to run ruff and cleanup whitespace automatically.
 
 ### Configuration
 
@@ -85,6 +86,16 @@ use an in-memory database.
 
 ```bash
 uvicorn app.main:app --reload
+```
+
+### Makefile helpers
+
+A simple `Makefile` offers shortcuts:
+
+```bash
+make test      # run pytest
+make lint      # run ruff and fix issues
+make up        # start services via docker-compose
 ```
 
 API docs available at `http://localhost:8000/docs`.
@@ -115,13 +126,19 @@ alembic revision --autogenerate -m "describe change"
 alembic upgrade head
 ```
 
+[![coverage](https://img.shields.io/badge/coverage-??%25-yellow.svg)](https://github.com/nayfly/Job-Tracker-API/actions)
+
 ## API Overview
 
 - `POST /auth/register` – create new user
 - `POST /auth/login` – obtain bearer token
-- `GET /health` – healthcheck
+- `GET /health` – healthcheck with database connectivity check
+- `GET /metrics` – Prometheus metrics
 - `GET/POST/DELETE /companies` – manage companies (deletion is supported)
-- `GET/POST/DELETE /applications` – manage applications
+- `GET/POST/DELETE/PATCH /applications` – manage applications; list supports
+  pagination, filtering (`status`, `company_id`), sorting, and partial
+  updates
+- `GET /applications/dashboard/summary` – business-oriented summary
 - `GET/POST/DELETE /followups` – manage follow-up notes
 
 Authentication is required for most endpoints. Use the returned JWT in

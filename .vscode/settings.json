@@ -7,6 +7,14 @@
         "/^C:/ProyectosDev/job-tracker-api/\\.venv/Scripts/python\\.exe -m pytest -q$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "ForEach-Object": true,
+        "pytest": true,
+        "C:/Users/rober/OneDrive/Documentos/GitHub/Job-Tracker-API/.venv/Scripts/python.exe": true,
+        "set": true,
+        "/^powershell -command \"gci env: \\| where-object \\{ \\$_\\.Name -match 'PYTHON' \\} \\| format-list\"$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }

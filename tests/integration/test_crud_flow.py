@@ -61,6 +61,24 @@ def test_companies_applications_followups_flow():
     assert r.status_code == 200
     assert len(r.json()) == 1
 
+    # filtering and ordering should respect query params (status, company_id)
+    r = client.get(
+        "/applications/",
+        params={"status": "applied", "company_id": company["id"], "limit": 5, "order_by": "id"},
+        headers=auth_header(token),
+    )
+    assert r.status_code == 200
+    assert len(r.json()) == 1
+
+    # patch the application to change status
+    r = client.patch(
+        f"/applications/{application['id']}",
+        json={"status": "interview"},
+        headers=auth_header(token),
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "interview"
+
     # add a followup
     r = client.post(
         "/followups/",
@@ -81,6 +99,14 @@ def test_companies_applications_followups_flow():
     data = r.json()
     assert len(data) == 1
     assert data[0]["note"] == "Sent resume"
+
+    # dashboard summary should reflect one application and one followup
+    r = client.get("/applications/dashboard/summary", headers=auth_header(token))
+    assert r.status_code == 200
+    summary = r.json()
+    # after patch the application status was changed to interview
+    assert summary["counts_by_status"].get("interview", 0) == 1
+    assert len(summary["recent_followups"]) == 1
 
     # delete the followup
     r = client.delete(f"/followups/{data[0]['id']}", headers=auth_header(token))
