@@ -1,0 +1,7 @@
+services:
+  api:
+    environment:
+      PYTHONPATH: /app
+    volumes:
+      - .:/app
+    command: ["sh", "/app/scripts/entrypoint.sh"]
